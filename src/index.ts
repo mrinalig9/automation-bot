@@ -7,17 +7,24 @@ async function main () {
     //open a fresh page
     const page = await browser.newPage();
 
-    //navigate to url
+    //go to login page
     await page.goto("https://the-internet.herokuapp.com/login");
 
-    //grab page title for confirmation
-    const title = await page.title();
-    console.log("Page loaded. Title: ", title);
+    //fill in username
+    await page.fill("#username", "tomsmith");
 
-    //pause for 3 seconds to see the page
+    //fill in password
+    await page.fill("#password", "SuperSecretPassword!");
+
+    //click submit
+    await page.click("button[type='submit']");
+
+    //wait for page to load and confirm login was successful
+    await page.waitForSelector("text=Secure Area");
+    console.log("Login successful");
+
+    //pause to see, then close the browser
     await page.waitForTimeout(3000);
-
-    //close browser
     await browser.close();
 }
 
