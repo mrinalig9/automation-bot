@@ -1,30 +1,42 @@
 import { chromium } from "playwright";
 
 async function main () {
-    // launch browser - headless: false means that the browser will be visible
+    // launch browser + open page
     const browser = await chromium.launch({headless: false});
-
-    //open a fresh page
     const page = await browser.newPage();
 
-    //go to login page
+    //login
     await page.goto("https://the-internet.herokuapp.com/login");
-
-    //fill in username
     await page.fill("#username", "tomsmith");
-
-    //fill in password
     await page.fill("#password", "SuperSecretPassword!");
-
-    //click submit
     await page.click("button[type='submit']");
-
-    //wait for page to load and confirm login was successful
     await page.waitForSelector("text=Secure Area");
     console.log("Login successful");
 
-    //pause to see, then close the browser
-    await page.waitForTimeout(3000);
+    //navigate to "Dynamic Loading" page
+    await page.goto("https://the-internet.herokuapp.com/dynamic_loading/1");
+
+    //click start to trigger delayed content
+    await page.click("#start button");
+    console.log("Clicked start button, waiting for delayed content");
+
+    //wait for hidden element to appear
+    await page.waitForSelector("#finish");
+
+    //extract text from the element
+    const resultText = await page.textContent("#finish");
+    console.log("Extracted:", resultText);
+
+    //save as structured json
+    const result = {
+        task: "Dynamic_loading",
+        extractedText: resultText?.trim(),
+        timestamp: new Date().toISOString(),
+        status: "success",
+    };
+
+    console.log("Structured JSON:", JSON.stringify(result, null, 2));
+
     await browser.close();
 }
 
