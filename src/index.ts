@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import * as fs from "fs";
 
 // Log levels
  type LogLevel = "INFO" | "WARN" | "ERROR";
@@ -101,6 +102,8 @@ async function main () {
 
         log("INFO", `JSON: ${JSON.stringify(result, null, 2)}`);
         status = "success"; // mark success if all steps completed without throwing
+        fs.writeFileSync("output.json", JSON.stringify(result, null, 2));
+        log("INFO", "Result saved to output.json");
     }
     catch (error) {
         log("ERROR", `Run failed: ${error}`);
