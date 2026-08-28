@@ -1,5 +1,19 @@
 import { chromium } from "playwright";
 
+// Log levels
+ type LogLevel = "INFO" | "WARN" | "ERROR";
+
+/**
+ * prints a timestamped, leveled, and formatted log message
+ * @param level - info for general messages, warn for recoverable issues, error for failures
+ * @param message - what happened
+ */
+
+function log (level: LogLevel, message:string): void {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [${level}] ${message}`);
+}
+
 /** 
  * runs an async operation w retries and exponential backoff
  * @param operation - the async function to attempt
@@ -18,23 +32,24 @@ async function withRetry<T>(
             //attempt the operation. if successful, return the result immediately.
             const result = await operation();
             if (attempt > 1) {
-                console.log(`${label} succeeded on attempt ${attempt}`);
+                log("INFO", `${label} succeeded on attempt ${attempt}`);
             }
             return result;
         } catch (error) {
             lastError = error;
-            console.log(`[${label}] Attempt ${attempt} failed.`);
+            log("WARN", `[${label}] Attempt ${attempt} failed.`);
 
             // if we still have attempts left, wait with exponential backoff.
             if (attempt < maxAttempts) {
                 const backoffMs = 1000 * Math.pow(2, attempt - 1); // backoff: 1s, 2s, 4s
-                console.log(`[${label}] Retrying in ${backoffMs}ms...`);
+                log("WARN", `[${label}] Retrying in ${backoffMs}ms...`);
                 await new Promise((resolve) => setTimeout(resolve, backoffMs));
             }
         }
     }
 
     // all attempts failed
+    log("ERROR", `[${label}] Failed after ${maxAttempts} attempts. Last error: ${lastError}`);
     throw new Error(`[${label}] Failed after ${maxAttempts} attempts. Last error: ${lastError}`);
 
 }
@@ -50,7 +65,7 @@ async function main () {
     await page.fill("#password", "SuperSecretPassword!");
     await page.click("button[type='submit']");
     await page.waitForSelector("text=Secure Area");
-    console.log("Login successful");
+    log("INFO", "Login successful");
 
     //navigate to "Dynamic Loading" page
     await page.goto("https://the-internet.herokuapp.com/dynamic_loading/1");
@@ -60,7 +75,7 @@ async function main () {
         () => page.click("#start button", { timeout: 5000 }),
         "Click Start Button"
     );
-    console.log("Clicked start button, waiting for delayed content");
+    log("INFO", "Clicked start button, waiting for delayed content");
 
     //wait for hidden element to appear, with retry
     await withRetry(
@@ -70,7 +85,7 @@ async function main () {
 
     //extract text from the element
     const resultText = await page.textContent("#finish");
-    console.log("Extracted:", resultText);
+    log("INFO", `Extracted: ${resultText}`);
 
     //save as structured json
     const result = {
@@ -80,7 +95,7 @@ async function main () {
         status: "success",
     };
 
-    console.log("JSON:", JSON.stringify(result, null, 2));
+    log("INFO", `JSON: ${JSON.stringify(result, null, 2)}`);
 
     await browser.close();
 }
