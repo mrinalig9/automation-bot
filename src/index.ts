@@ -55,49 +55,60 @@ async function withRetry<T>(
 }
 
 async function main () {
+    const startTime = Date.now(); // record start time
     // launch browser + open page
     const browser = await chromium.launch({headless: false});
     const page = await browser.newPage();
 
-    //login
-    await page.goto("https://the-internet.herokuapp.com/login");
-    await page.fill("#username", "tomsmith");
-    await page.fill("#password", "SuperSecretPassword!");
-    await page.click("button[type='submit']");
-    await page.waitForSelector("text=Secure Area");
-    log("INFO", "Login successful");
+    let status: "success"| "failure" = "failure"; // assume failure until proven otherwise
 
-    //navigate to "Dynamic Loading" page
-    await page.goto("https://the-internet.herokuapp.com/dynamic_loading/1");
+    try {
+        //login
+        await page.goto("https://the-internet.herokuapp.com/login");
+        await page.fill("#username", "tomsmith");
+        await page.fill("#password", "SuperSecretPassword!");
+        await page.click("button[type='submit']");
+        await page.waitForSelector("text=Secure Area");
+        log("INFO", "Login successful");
 
-    //click start to trigger delayed content, with retry
-    await withRetry(
-        () => page.click("#start button", { timeout: 5000 }),
-        "Click Start Button"
-    );
-    log("INFO", "Clicked start button, waiting for delayed content");
+        //navigate to "Dynamic Loading" page
+        await page.goto("https://the-internet.herokuapp.com/dynamic_loading/1");
 
-    //wait for hidden element to appear, with retry
-    await withRetry(
-        () => page.waitForSelector("#finish", { timeout: 5000 }),
-        "Wait for Delayed Content"
-    );
+        //click start to trigger delayed content, with retry
+        await withRetry(
+            () => page.click("#start button", { timeout: 5000 }),
+            "Click Start Button"
+        );
+        log("INFO", "Clicked start button, waiting for delayed content");
 
-    //extract text from the element
-    const resultText = await page.textContent("#finish");
-    log("INFO", `Extracted: ${resultText}`);
+        //wait for hidden element to appear, with retry
+        await withRetry(
+            () => page.waitForSelector("#finish", { timeout: 5000 }),
+            "Wait for Delayed Content"
+        );
 
-    //save as structured json
-    const result = {
-        task: "Dynamic_loading",
-        extractedText: resultText?.trim(),
-        timestamp: new Date().toISOString(),
-        status: "success",
-    };
+        //extract text from the element
+        const resultText = await page.textContent("#finish");
+        log("INFO", `Extracted: ${resultText}`);
 
-    log("INFO", `JSON: ${JSON.stringify(result, null, 2)}`);
+        //save as structured json
+        const result = {
+            task: "Dynamic_loading",
+            extractedText: resultText?.trim(),
+            timestamp: new Date().toISOString(),
+            status: "success",
+        };
 
+        log("INFO", `JSON: ${JSON.stringify(result, null, 2)}`);
+        status = "success"; // mark success if all steps completed without throwing
+    }
+    catch (error) {
+        log("ERROR", `Run failed: ${error}`);
+}   finally {
     await browser.close();
+    const elapsedTime = (Date.now() - startTime);
+    log("INFO", `Run summary — status: ${status}, total time: ${elapsedTime}ms`);
+    }
 }
 
 main();
