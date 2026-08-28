@@ -57,14 +57,14 @@ async function main () {
 
     //click start to trigger delayed content, with retry
     await withRetry(
-        () => page.click("#start button"),
+        () => page.click("#start button", { timeout: 5000 }),
         "Click Start Button"
     );
     console.log("Clicked start button, waiting for delayed content");
 
     //wait for hidden element to appear, with retry
     await withRetry(
-        () => page.waitForSelector("#finish"),
+        () => page.waitForSelector("#finish", { timeout: 5000 }),
         "Wait for Delayed Content"
     );
 
@@ -80,7 +80,7 @@ async function main () {
         status: "success",
     };
 
-    console.log("Structured JSON:", JSON.stringify(result, null, 2));
+    console.log("JSON:", JSON.stringify(result, null, 2));
 
     await browser.close();
 }
