@@ -104,7 +104,14 @@ async function main () {
     }
     catch (error) {
         log("ERROR", `Run failed: ${error}`);
-}   finally {
+        // capture screenshot for debugging, wrapped in case screenshot fails
+        try {
+            await page.screenshot({ path: "failure.png"});
+            log("INFO", "Screenshot captured: failure.png");
+        } catch {
+            log("WARN", "Failed to capture screenshot");
+        }
+    } finally {
     await browser.close();
     const elapsedTime = (Date.now() - startTime);
     log("INFO", `Run summary — status: ${status}, total time: ${elapsedTime}ms`);
