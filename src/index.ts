@@ -15,16 +15,34 @@ function log (level: LogLevel, message:string): void {
     console.log(`[${timestamp}] [${level}] ${message}`);
 }
 
+// central config
+const config = {
+    loginUrl: "https://the-internet.herokuapp.com/login",
+    taskUrl: "https://the-internet.herokuapp.com/dynamic_loading/1",
+    credentials: {
+        username: "tomsmith",
+        password: "SuperSecretPassword!"
+    },
+    timeouts: {
+        step: 5000,
+    },
+    retry: {
+        maxAttempts: 3,
+    },
+    outputFile: "output.json",
+    headless: false,
+};
+
 /** 
  * runs an async operation w retries and exponential backoff
  * @param operation - the async function to attempt
  * @param label - label for logging
  * @param maxAttempts - maximum number of retries
  */
-async function withRetry<T>(
+export async function withRetry<T>(
     operation: () => Promise<T>,
     label: string,
-    maxAttempts: number = 3
+    maxAttempts: number = config.retry.maxAttempts
 ): Promise<T> {
     let lastError: unknown;
 
@@ -58,33 +76,33 @@ async function withRetry<T>(
 async function main () {
     const startTime = Date.now(); // record start time
     // launch browser + open page
-    const browser = await chromium.launch({headless: false});
+    const browser = await chromium.launch({headless: config.headless});
     const page = await browser.newPage();
 
     let status: "success"| "failure" = "failure"; // assume failure until proven otherwise
 
     try {
         //login
-        await page.goto("https://the-internet.herokuapp.com/login");
-        await page.fill("#username", "tomsmith");
-        await page.fill("#password", "SuperSecretPassword!");
+        await page.goto(config.loginUrl);
+        await page.fill("#username", config.credentials.username);
+        await page.fill("#password", config.credentials.password);
         await page.click("button[type='submit']");
         await page.waitForSelector("text=Secure Area");
         log("INFO", "Login successful");
 
         //navigate to "Dynamic Loading" page
-        await page.goto("https://the-internet.herokuapp.com/dynamic_loading/1");
+        await page.goto(config.taskUrl);
 
         //click start to trigger delayed content, with retry
         await withRetry(
-            () => page.click("#start button", { timeout: 5000 }),
+            () => page.click("#start button", { timeout: config.timeouts.step }),
             "Click Start Button"
         );
         log("INFO", "Clicked start button, waiting for delayed content");
 
         //wait for hidden element to appear, with retry
         await withRetry(
-            () => page.waitForSelector("#finish", { timeout: 5000 }),
+            () => page.waitForSelector("#finish", { timeout: config.timeouts.step }),
             "Wait for Delayed Content"
         );
 
@@ -102,8 +120,8 @@ async function main () {
 
         log("INFO", `JSON: ${JSON.stringify(result, null, 2)}`);
         status = "success"; // mark success if all steps completed without throwing
-        fs.writeFileSync("output.json", JSON.stringify(result, null, 2));
-        log("INFO", "Result saved to output.json");
+        fs.writeFileSync(config.outputFile, JSON.stringify(result, null, 2));
+        log("INFO", `Result saved to ${config.outputFile}`);
     }
     catch (error) {
         log("ERROR", `Run failed: ${error}`);
@@ -121,5 +139,9 @@ async function main () {
     }
 }
 
-main();
+// Only run the automation when this file is executed directly (e.g. `npm start`),
+// not when it's imported by a test.
+if (require.main === module) {
+    main();
+}
 
